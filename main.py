@@ -42,19 +42,18 @@ def is_valid_youtube_url(url):
     pattern = r"^(https?://)?(www\.)?youtube\.com/watch\?v=[\w-]+(&\S*)?$"
     return re.match(pattern, url) is not None
 
-@app.route('/download/<resolution>', methods=['POST'])
+@app.route('/download/<resolution>', methods=['GET'])
 def download_by_resolution(resolution):
-    data = request.get_json()
-    url = data.get('url')
-    
-    if not url:
-        return jsonify({"error": "Missing 'url' parameter in the request body."}), 400
+    youtube_link = request.args.get('link')
 
-    if not is_valid_youtube_url(url):
+    if not youtube_link:
+        return jsonify({"error": "Missing 'link' query parameter."}), 400
+
+    if not YouTube.validate_url(youtube_link):
         return jsonify({"error": "Invalid YouTube URL."}), 400
-    
-    success, error_message = download_video(url, resolution)
-    
+
+    success, error_message = download_video(youtube_link, resolution)
+
     if success:
         return jsonify({"message": f"Video with resolution {resolution} downloaded successfully."}), 200
     else:

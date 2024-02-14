@@ -5,24 +5,22 @@ import io
 
 app = Flask(__name__)
 
-def on_progress(stream, chunk, bytes_remaining):
-    global global_bytes_io
-    global_bytes_io.write(chunk)
+def on_progress(chunk, bytes_remaining):
+    yield chunk
 
-def download_video(url, resolution):
+@app.route('/download_video/<resolution>/<path:url>')
+def download_video(resolution, url):
     try:
         yt = YouTube(url, on_progress_callback=on_progress)
         stream = yt.streams.filter(progressive=True, file_extension='mp4', resolution=resolution).first()
         if stream:
-            global global_bytes_io
-            global_bytes_io = io.BytesIO()  # Reinitialize BytesIO object for each download
-            stream.download(output_path='/dev/null')  # Using /dev/null to prevent local saving
-            global_bytes_io.seek(0)  # Reset cursor to beginning of BytesIO object
-            return True, global_bytes_io
+            response = Response(stream.stream(), content_type='video/mp4')
+            response.headers['Content-Disposition'] = f'attachment; filename="{yt.title}.mp4"'
+            return response
         else:
-            return False, "Video with the specified resolution not found."
+            return "Video with the specified resolution not found.", 404
     except Exception as e:
-        return False, str(e)
+        return str(e), 500
 
 def get_video_info(url):
     try:

@@ -1,16 +1,24 @@
 from flask import Flask, request, jsonify
 from pytube import YouTube
 import re
+import io
 
 app = Flask(__name__)
 
+def on_progress(stream, chunk, bytes_remaining):
+    global global_bytes_io
+    global_bytes_io.write(chunk)
+
 def download_video(url, resolution):
     try:
-        yt = YouTube(url)
+        yt = YouTube(url, on_progress_callback=on_progress)
         stream = yt.streams.filter(progressive=True, file_extension='mp4', resolution=resolution).first()
         if stream:
-            stream.download()
-            return True, None
+            global global_bytes_io
+            global_bytes_io = io.BytesIO()  # Reinitialize BytesIO object for each download
+            stream.download(output_path='/dev/null')  # Using /dev/null to prevent local saving
+            global_bytes_io.seek(0)  # Reset cursor to beginning of BytesIO object
+            return True, global_bytes_io
         else:
             return False, "Video with the specified resolution not found."
     except Exception as e:
